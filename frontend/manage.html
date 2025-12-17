@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Tournament - Lorian Awards</title>
+    <link rel="stylesheet" href="/static/styles.css?v=4">
+    <style>
+        /* Specific Styles for Manage Page */
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            font-weight: bold;
+            border: 1px solid #333;
+            margin-left: 10px;
+        }
+        .status-draft { background: #333; color: #aaa; }
+        .status-active { background: #004d00; color: #00ff00; border-color: #00ff00; }
+        .status-completed { background: #332b00; color: var(--accent-color); border-color: var(--accent-color); }
+
+        .manage-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+            border-top: 1px solid #333;
+            padding-top: 20px;
+        }
+
+        .delete-btn {
+            background-color: #8b0000;
+            color: #fff;
+        }
+        .delete-btn:hover { background-color: #ff0000; }
+
+        .start-btn {
+            background-color: #006400;
+            color: #fff;
+            width: 100%;
+        }
+        .start-btn:hover { background-color: #00a000; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/">
+            <img src="/static/logo.png" alt="Logo" class="site-logo">
+        </a>
+        <a href="/" class="site-title">LORIAN AWARDS</a>
+        
+        <div style="margin-left: auto;">
+            <button onclick="logoutAdmin()" style="font-size: 0.8em; padding: 8px 16px;">Logout</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div style="display:flex; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
+            <h1 style="margin:0;">Manage: <span id="t-name">Loading...</span></h1>
+            <span id="t-status" class="status-badge">...</span>
+        </div>
+        
+        <p style="color:#888; font-size:0.9em;">
+            Tournament ID: <span id="t-id-display"></span>
+        </p>
+
+        <div id="add-song-section" class="action-bar" style="display:none;">
+            <h3 style="margin-top:0;">Add Songs</h3>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="new-url" placeholder="Paste Spotify Link (Track, Album, or Playlist)" style="flex:1;">
+                <button onclick="addSong()" id="add-btn">Add</button>
+            </div>
+            <p id="add-status" style="margin-top:10px; font-size:0.9em;"></p>
+        </div>
+
+        <h3 id="song-count-header">Contestants (0)</h3>
+        <div id="song-list"></div>
+
+        <div class="manage-controls">
+            <button id="start-btn" class="start-btn" onclick="startTournament()" style="display:none;">START TOURNAMENT</button>
+            <button class="delete-btn" onclick="deleteTournament()" style="width: 100%;">DELETE TOURNAMENT</button>
+        </div>
+        
+        <div style="text-align:center; margin-top:20px;">
+            <a href="#" id="view-bracket-link">View Public Bracket &rarr;</a>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+    <script>
+        // 1. SECURITY CHECK
+        if (!isLoggedIn()) {
+            alert("Access Denied. Please log in on the homepage.");
+            window.location.href = "/";
+        }
+
+        const tId = window.location.pathname.split('/').pop();
+        document.getElementById('t-id-display').innerText = tId;
+        document.getElementById('view-bracket-link').href = `/bracket/${tId}`;
+
+        // 2. LOAD DATA
+        async function loadData() {
+            try {
+                // We use the public endpoint to read data (it's faster/easier)
+                const res = await fetch(`/api/vote/tournament/${tId}`);
+                if (!res.ok) throw new Error("Tournament not found");
+                
+                const data = await res.json();
+                
+                document.getElementById('t-name').innerText = data.name;
+                
+                // Set Status Badge
+                const statusEl = document.getElementById('t-status');
+                statusEl.innerText = data.status.toUpperCase();
+                statusEl.className = `status-badge status-${data.status}`;
+
+                // Render Songs
+                renderSongs(data.contestants, data.status);
+
+                // UI State based on Status
+                if (data.status === 'draft') {
+                    document.getElementById('add-song-section').style.display = 'block';
+                    document.getElementById('start-btn').style.display = 'block';
+                } else {
+                    document.getElementById('add-song-section').style.display = 'none';
+                    document.getElementById('start-btn').style.display = 'none';
+                }
+
+            } catch (err) {
+                alert(err.message);
+                window.location.href = "/";
+            }
+        }
+
+        function renderSongs(contestants, status) {
+            const list = document.getElementById('song-list');
+            document.getElementById('song-count-header').innerText = `Contestants (${contestants.length})`;
+            list.innerHTML = '';
+
+            if (contestants.length === 0) {
+                list.innerHTML = '<p style="color:#666;">No songs added yet.</p>';
+                return;
+            }
+
+            contestants.forEach(song => {
+                const row = document.createElement('div');
+                row.className = 'song-row';
+                
+                // Show Remove button only if Draft
+                const removeBtn = status === 'draft' 
+                    ? `<button class="remove-btn" onclick="removeSong('${song.id}')">Remove</button>` 
+                    : '';
+
+                row.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <img src="${song.image_url}" width="50" height="50" style="border-radius:4px; object-fit:cover;">
+                        <div>
+                            <div style="font-weight:bold; font-family:'Cinzel', serif;">${song.title}</div>
+                            <div style="font-size:0.8em; color:#aaa;">${song.artist}</div>
+                        </div>
+                    </div>
+                    ${removeBtn}
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        // 3. ACTIONS (Using authFetch)
+
+        async function addSong() {
+            const urlInput = document.getElementById('new-url');
+            const url = urlInput.value.trim();
+            const btn = document.getElementById('add-btn');
+            const status = document.getElementById('add-status');
+
+            if(!url) return;
+
+            btn.disabled = true;
+            btn.innerText = "...";
+            status.innerText = "Fetching from Spotify...";
+            status.style.color = "var(--accent-color)";
+
+            try {
+                const res = await authFetch(`/api/admin/${tId}/add-song`, {
+                    method: 'POST',
+                    body: JSON.stringify({ url: url })
+                });
+
+                if (res && res.ok) {
+                    const data = await res.json();
+                    status.innerText = data.message;
+                    status.style.color = "green";
+                    urlInput.value = ""; // Clear input
+                    loadData(); // Refresh list
+                } else {
+                    status.innerText = "Error adding song.";
+                    status.style.color = "red";
+                }
+            } catch (e) {
+                console.error(e);
+                status.innerText = "Network Error";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Add";
+            }
+        }
+
+        async function removeSong(songId) {
+            if(!confirm("Remove this song?")) return;
+            
+            const res = await authFetch(`/api/admin/${tId}/remove-song`, {
+                method: 'POST',
+                body: JSON.stringify({ song_id: songId })
+            });
+
+            if (res && res.ok) {
+                loadData();
+            }
+        }
+
+        async function startTournament() {
+            if(!confirm("Are you sure? This will lock the song list and generate the bracket.")) return;
+            
+            const res = await authFetch(`/api/admin/${tId}/start`, {
+                method: 'POST'
+            });
+            
+            if(res && res.ok) {
+                alert("Tournament Started Successfully!");
+                window.location.href = `/bracket/${tId}`;
+            } else {
+                alert("Failed to start. Ensure you have at least 2 songs.");
+            }
+        }
+
+        async function deleteTournament() {
+            const status = document.getElementById('t-status').innerText;
+            const msg = status === 'ACTIVE' 
+                ? "WARNING: This tournament is LIVE. Deleting it will remove all votes and history. This cannot be undone." 
+                : "Delete this draft permanently?";
+                
+            if(!confirm(msg)) return;
+
+            const res = await authFetch(`/api/admin/${tId}`, {
+                method: 'DELETE'
+            });
+
+            if(res && res.ok) {
+                alert("Tournament Deleted.");
+                window.location.href = "/";
+            }
+        }
+
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>

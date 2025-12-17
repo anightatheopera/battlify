@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vote - Lorian Awards</title>
+    <link rel="stylesheet" href="/static/styles.css?v=15">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <a href="/">
+            <img src="/static/logo.png" alt="Logo" class="site-logo">
+        </a>
+        <a href="/" class="site-title">LORIAN AWARDS</a>
+    </header>
+
+    <div class="container" style="width: 100%; max-width: 100%; padding: 20px;"> 
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding: 0 40px;">
+            <h1 id="tournament-title" style="margin:0;">Loading...</h1>
+            <div style="display:flex; gap: 15px;">
+                <button onclick="downloadBracketImage()" class="download-btn">
+                    📸 Save Image
+                </button>
+                <a id="manage-link" href="#" style="font-size:0.9em; color: #888; display: none; align-self: center;">[Manage / Delete]</a>
+            </div>
+        </div>
+
+        <div id="round-info" class="round-info" style="display:none;">
+            <h2 id="current-round-name"></h2>
+            <div id="timer" class="timer"></div>
+        </div>
+
+        <div id="bracket-capture-area" class="bracket-wrapper">
+            <div id="bracket-left" class="bracket-half left"></div>
+            <div id="bracket-final" class="bracket-final"></div>
+            <div id="bracket-right" class="bracket-half right"></div>
+        </div>
+
+        <div id="error-msg" style="color: red; text-align:center; margin-top:20px;"></div>
+    </div>
+
+    <script src="/static/script.js"></script>
+    <script>
+        // --- 4. DOWNLOAD LOGIC ---
+        function downloadBracketImage() {
+            const element = document.getElementById("bracket-capture-area");
+            const btn = document.querySelector(".download-btn");
+            
+            // User feedback
+            const originalText = btn.innerText;
+            btn.innerText = "Generating...";
+            btn.style.opacity = "0.7";
+
+            // html2canvas configuration
+            html2canvas(element, {
+                backgroundColor: "#050505", // Ensure background isn't transparent
+                useCORS: true,              // CRITICAL: Allows Spotify images to render
+                scale: 2,                   // High resolution (Retina quality)
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: element.scrollWidth, // Capture full width even if scrolling
+                windowHeight: element.scrollHeight
+            }).then(canvas => {
+                // Create a fake link to trigger download
+                const link = document.createElement('a');
+                link.download = `bracket_snapshot_${Date.now()}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+
+                // Reset button
+                btn.innerText = originalText;
+                btn.style.opacity = "1";
+            }).catch(err => {
+                console.error("Screenshot failed:", err);
+                alert("Could not generate image. This usually happens if image sources block screenshots.");
+                btn.innerText = originalText;
+                btn.style.opacity = "1";
+            });
+        }
+
+        // --- EXISTING LOGIC BELOW ---
+        const tournamentId = getTournamentIdFromUrl();
+        
+        if (isLoggedIn()) {
+            const manageLink = document.getElementById('manage-link');
+            manageLink.href = `/manage/${tournamentId}`;
+            manageLink.style.display = 'inline';
+        }
+
+        fetch(`/api/vote/tournament/${tournamentId}`)
+            .then(res => {
+                if (!res.ok) throw new Error("Tournament not found.");
+                return res.json();
+            })
+            .then(data => {
+                document.getElementById('tournament-title').innerText = data.name;
+                adjustBracketScale(data.rounds.length);
+
+                if (data.status === 'active') {
+                    const currentRound = data.rounds[data.current_round_index];
+                    document.getElementById('current-round-name').innerText = "VOTING ACTIVE: " + currentRound.round_name;
+                    document.getElementById('round-info').style.display = 'block';
+                    startTimer(currentRound.end_time);
+                } else if (data.status === 'completed') {
+                    document.getElementById('current-round-name').innerText = "TOURNAMENT COMPLETED";
+                    document.getElementById('round-info').style.display = 'block';
+                    const timerEl = document.getElementById('timer');
+                    timerEl.innerText = "Winner!: Check the final bracket!";
+                    timerEl.style.color = "var(--accent-color)";
+                }
+
+                renderTreeBracket(data);
+            })
+            .catch(err => {
+                document.getElementById('error-msg').innerText = err.message;
+            });
+
+        function adjustBracketScale(totalRounds) {
+            const root = document.documentElement;
+            if (totalRounds <= 3) {
+                root.style.setProperty('--column-padding', '50px');
+                root.style.setProperty('--match-gap', '40px');
+                root.style.setProperty('--line-reach', '25px');
+            } 
+            else if (totalRounds <= 5) {
+                root.style.setProperty('--column-padding', '30px');
+                root.style.setProperty('--match-gap', '30px');
+                root.style.setProperty('--line-reach', '15px');
+            } 
+            else {
+                root.style.setProperty('--column-padding', '15px');
+                root.style.setProperty('--match-gap', '20px');
+                root.style.setProperty('--line-reach', '10px');
+            }
+        }
+
+        function renderTreeBracket(data) {
+            const leftRoot = document.getElementById('bracket-left');
+            const rightRoot = document.getElementById('bracket-right');
+            const finalRoot = document.getElementById('bracket-final');
+
+            leftRoot.innerHTML = ''; rightRoot.innerHTML = ''; finalRoot.innerHTML = '';
+
+            data.rounds.forEach((round, index) => {
+                const isVotingRound = (index === data.current_round_index && data.status === 'active');
+                
+                if (round.matches.length === 1) {
+                    const col = createColumn();
+                    col.appendChild(createMatchNode(round.matches[0], isVotingRound, index));
+                    finalRoot.appendChild(col);
+                    return;
+                } 
+
+                const leftCol = createColumn();
+                const rightCol = createColumn();
+                
+                const matches = round.matches;
+                const midPoint = Math.ceil(matches.length / 2);
+                const leftMatches = matches.slice(0, midPoint);
+                const rightMatches = matches.slice(midPoint);
+
+                appendMatchesAsPairs(leftCol, leftMatches, isVotingRound, index, 'left');
+                appendMatchesAsPairs(rightCol, rightMatches, isVotingRound, index, 'right');
+
+                leftRoot.appendChild(leftCol);
+                rightRoot.appendChild(rightCol);
+            });
+        }
+
+        function appendMatchesAsPairs(column, matches, isVotingRound, roundIndex, side) {
+            for (let i = 0; i < matches.length; i += 2) {
+                if (i + 1 < matches.length) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = `match-pair ${side}`;
+                    wrapper.appendChild(createMatchNode(matches[i], isVotingRound, roundIndex));
+                    wrapper.appendChild(createMatchNode(matches[i+1], isVotingRound, roundIndex));
+                    column.appendChild(wrapper);
+                } else {
+                    column.appendChild(createMatchNode(matches[i], isVotingRound, roundIndex));
+                }
+            }
+        }
+
+        function createColumn() {
+            const col = document.createElement('div');
+            col.className = 'round-column';
+            return col;
+        }
+
+        function createMatchNode(match, isVotingRound, roundIndex) {
+            const node = document.createElement('div');
+            node.className = 'bracket-match';
+            node.appendChild(createTeamRow(match.contestant_a, match.votes_a, match, 'a', isVotingRound, roundIndex));
+            if (match.contestant_b) {
+                node.appendChild(createTeamRow(match.contestant_b, match.votes_b, match, 'b', isVotingRound, roundIndex));
+            } else {
+                const bye = document.createElement('div');
+                bye.className = 'bracket-team lost';
+                bye.style.justifyContent = 'center';
+                bye.innerHTML = '<span style="font-size:0.8em; color:#555;">(BYE)</span>';
+                node.appendChild(bye);
+            }
+            return node;
+        }
+
+        function createTeamRow(contestant, votes, match, option, isVotingRound, roundIndex) {
+            const row = document.createElement('div');
+            let statusClass = '';
+            if (match.winner_id === contestant.id) statusClass = 'winner';
+            else if (match.winner_id && match.winner_id !== contestant.id) statusClass = 'lost';
+            
+            row.className = `bracket-team ${statusClass}`;
+
+            const img = document.createElement('img');
+            img.src = contestant.image_url || '/static/logo.png';
+            img.className = 'team-art';
+            // Enable Cross-Origin for canvas capture
+            img.crossOrigin = "anonymous"; 
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'team-name';
+            nameDiv.innerText = contestant.title;
+
+            const badge = document.createElement('div');
+            badge.className = 'vote-badge';
+            badge.innerText = votes;
+
+            row.appendChild(img);
+            row.appendChild(nameDiv);
+            row.appendChild(badge);
+
+            const storageKey = `voted_${tournamentId}_r${roundIndex}_m${match.match_id}`;
+            const hasVoted = localStorage.getItem(storageKey);
+
+            if (isVotingRound && !match.winner_id) {
+                if (hasVoted) {
+                    row.onclick = () => alert("⚠️ You have already voted.");
+                    row.style.cursor = "not-allowed";
+                    row.style.opacity = "0.7"; 
+                } else {
+                    row.onclick = function() {
+                        if(confirm(`Vote for ${contestant.title}?`)) {
+                            badge.innerText = parseInt(votes) + 1;
+                            badge.style.color = "var(--accent-color)";
+                            row.style.background = "#333";
+                            vote(match.match_id, option, row);
+                            localStorage.setItem(storageKey, "true");
+                            row.onclick = () => alert("⚠️ You have already voted.");
+                            row.style.cursor = "not-allowed";
+                        }
+                    };
+                }
+            } else {
+                row.style.cursor = "default";
+            }
+            return row;
+        }
+    </script>
+</body>
+</html>

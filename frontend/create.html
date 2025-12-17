@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Tournament - Lorian Awards</title>
+    <link rel="stylesheet" href="/static/styles.css?v=4">
+</head>
+<body>
+    <header class="header">
+        <a href="/">
+            <img src="/static/logo.png" alt="Logo" class="site-logo">
+        </a>
+        <a href="/" class="site-title">LORIAN AWARDS</a>
+    </header>
+
+    <div class="container">
+        <h1>Create New Bracket</h1>
+        
+        <form id="create-form" onsubmit="submitCreationForm(event)" style="max-width: 600px; margin: 0 auto;">
+            
+            <div class="form-group">
+                <label for="t-name">Tournament Name:</label>
+                <input type="text" id="t-name" required placeholder="e.g., Best Ariana Grande Songs">
+            </div>
+
+            <div class="form-group">
+                <label for="t-duration">Voting Duration per Round (minutes):</label>
+                <input type="number" id="t-duration" min="1" value="1440" required> (Default: 1440 mins = 24 hours)
+            </div>
+
+            <div class="form-group">
+                <label for="t-urls">Spotify URLs (One per line):</label>
+                <p style="font-size: 0.8em; color: #aaa;">Accepts Tracks, Albums, or Playlists.</p>
+                <textarea id="t-urls" rows="10" required placeholder="https://open.spotify.com/playlist/..."></textarea>
+            </div>
+
+            <button type="submit" id="submit-btn">Create Bracket</button>
+            <p id="create-status"></p>
+        </form>
+    </div>
+
+    <script src="/static/script.js"></script>
+    <script>
+        // 1. SECURITY CHECK: Redirect immediately if not logged in
+        if (!isLoggedIn()) {
+            alert("Access Denied: Admins Only.");
+            window.location.href = "/";
+        }
+
+        async function submitCreationForm(event) {
+            event.preventDefault();
+            const statusDiv = document.getElementById('create-status');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            statusDiv.innerText = "Processing... this may take a moment if fetching playlists.";
+            statusDiv.style.color = "var(--accent-color)";
+            submitBtn.disabled = true;
+
+            const name = document.getElementById('t-name').value;
+            const duration = parseInt(document.getElementById('t-duration').value);
+            // Split textarea by newlines and filter empty strings
+            const urls = document.getElementById('t-urls').value.split('\n').map(u => u.trim()).filter(u => u);
+
+            try {
+                // 2. Use authFetch: Handles the Token Header automatically
+                const response = await authFetch('/api/admin/create', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: name,
+                        voting_duration_minutes: duration,
+                        urls: urls
+                    })
+                });
+
+                if (response && response.ok) {
+                    const data = await response.json();
+                    statusDiv.innerHTML = "Success! Redirecting...";
+                    statusDiv.style.color = "green";
+                    
+                    // Redirect to the new Manage page
+                    setTimeout(() => {
+                        window.location.href = `/manage/${data.tournament_id}`;
+                    }, 1000);
+                } else {
+                    // Handle errors (authFetch handles 401, but we catch 400/500 here)
+                    if (response) {
+                        const err = await response.json();
+                        statusDiv.innerText = "Error: " + (err.detail || "Creation failed");
+                        statusDiv.style.color = "red";
+                    }
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error(error);
+                statusDiv.innerText = "Network Error";
+                submitBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
