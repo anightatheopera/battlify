@@ -46,8 +46,8 @@ tournament_app/
 
 ### 1. Clone the Repository
 ```bash
-git clone [https://github.com/yourusername/lorian-awards.git](https://github.com/yourusername/lorian-awards.git)
-cd lorian-awards
+git clone https://github.com/anightatheopera/tournament_website
+cd tournament_website
 ```
 
 ### 2. Set Up Environment Variables
