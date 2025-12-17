@@ -2,28 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vote - Lorian Awards</title>
-    <link rel="stylesheet" href="/static/styles.css?v=18">
+    <link rel="stylesheet" href="/static/styles.css?v=21">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
     <header class="header">
-        <a href="/">
-            <img src="/static/logo.png" alt="Logo" class="site-logo">
-        </a>
-        <a href="/" class="site-title">LORIAN AWARDS</a>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <a href="/">
+                <img src="/static/logo.png" alt="Logo" class="site-logo">
+            </a>
+            <a href="/" class="site-title">LORIAN AWARDS</a>
+        </div>
     </header>
 
     <div class="container"> 
-        
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding: 0 40px;">
+        <div class="controls-header">
             <h1 id="tournament-title" style="margin:0;">Loading...</h1>
-            <div style="display:flex; gap: 15px;">
+            <div class="controls-actions">
                 <button onclick="downloadBracketImage()" class="download-btn">
-                    📸 Save Image
+                    📸 Save
                 </button>
-                <a id="manage-link" href="#" style="font-size:0.9em; color: #888; display: none; align-self: center;">[Manage / Delete]</a>
+                <a id="manage-link" href="#" style="font-size:0.9em; color: #888; display: none;">[Manage]</a>
             </div>
         </div>
 
@@ -33,9 +34,9 @@
         </div>
 
         <div class="zoom-controls">
-            <button class="zoom-btn" onclick="adjustZoom(-0.1)" title="Zoom Out">➖</button>
-            <button class="zoom-btn" onclick="resetZoom()" title="Reset">↺</button>
-            <button class="zoom-btn" onclick="adjustZoom(0.1)" title="Zoom In">➕</button>
+            <button class="zoom-btn" onclick="adjustZoom(-0.1)">➖</button>
+            <button class="zoom-btn" onclick="resetZoom()">↺</button>
+            <button class="zoom-btn" onclick="adjustZoom(0.1)">➕</button>
         </div>
 
         <div class="bracket-window" id="bracket-window">
@@ -51,34 +52,107 @@
 
     <script src="/static/script.js"></script>
     <script>
-        // --- ZOOM LOGIC ---
+        // ==========================================
+        // 1. DRAG TO SCROLL LOGIC (Touch & Mouse)
+        // ==========================================
+        const slider = document.getElementById('bracket-window');
+        let isDown = false;
+        let startX, startY;
+        let scrollLeft, scrollTop;
+
+        // --- MOUSE EVENTS ---
+        slider.addEventListener('mousedown', (e) => {
+            isDown = true;
+            slider.style.cursor = 'grabbing';
+            startX = e.pageX - slider.offsetLeft;
+            startY = e.pageY - slider.offsetTop;
+            scrollLeft = slider.scrollLeft;
+            scrollTop = slider.scrollTop;
+        });
+
+        slider.addEventListener('mouseleave', () => {
+            isDown = false;
+            slider.style.cursor = 'grab';
+        });
+
+        slider.addEventListener('mouseup', () => {
+            isDown = false;
+            slider.style.cursor = 'grab';
+        });
+
+        slider.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - slider.offsetLeft;
+            const y = e.pageY - slider.offsetTop;
+            const walkX = (x - startX); 
+            const walkY = (y - startY);
+            slider.scrollLeft = scrollLeft - walkX;
+            slider.scrollTop = scrollTop - walkY;
+        });
+
+        // --- TOUCH EVENTS (For Mobile Fingers) ---
+        slider.addEventListener('touchstart', (e) => {
+            isDown = true;
+            startX = e.touches[0].pageX - slider.offsetLeft;
+            startY = e.touches[0].pageY - slider.offsetTop;
+            scrollLeft = slider.scrollLeft;
+            scrollTop = slider.scrollTop;
+        });
+
+        slider.addEventListener('touchend', () => {
+            isDown = false;
+        });
+
+        slider.addEventListener('touchmove', (e) => {
+            if (!isDown) return;
+            // Don't prevent default if we are mostly scrolling vertically on mobile body
+            // e.preventDefault(); 
+            const x = e.touches[0].pageX - slider.offsetLeft;
+            const y = e.touches[0].pageY - slider.offsetTop;
+            const walkX = (x - startX); 
+            const walkY = (y - startY);
+            slider.scrollLeft = scrollLeft - walkX;
+            slider.scrollTop = scrollTop - walkY;
+        });
+
+        // ==========================================
+        // 2. ZOOM LOGIC
+        // ==========================================
         let currentZoom = 1.0;
 
         function adjustZoom(delta) {
             currentZoom += delta;
             if (currentZoom < 0.2) currentZoom = 0.2;
-            if (currentZoom > 2.0) currentZoom = 2.0;
+            if (currentZoom > 3.0) currentZoom = 3.0; // Allow deeper zoom
             applyZoom();
         }
 
         function resetZoom() {
             currentZoom = 1.0;
             applyZoom();
+            // Reset scroll to center-ish
+            slider.scrollLeft = (slider.scrollWidth - slider.clientWidth) / 2;
         }
 
         function applyZoom() {
             const wrapper = document.getElementById('bracket-capture-area');
             wrapper.style.transform = `scale(${currentZoom})`;
             
-            // Adjust margin to prevent clipping when zoomed out
-            if (currentZoom < 1) {
-                wrapper.style.width = `${100 / currentZoom}%`;
+            // IMPORTANT: Update width/height to force scrollbars to appear
+            // This is what allows you to scroll to the edges when zoomed in
+            if(currentZoom > 1) {
+                // wrapper.style.width = `${currentZoom * 100}%`; 
+                // We rely on the native scale size pushing the margins
             } else {
-                wrapper.style.width = 'auto';
+                // If zoomed out, ensure it doesn't align weirdly
+                // wrapper.style.width = 'auto';
             }
         }
 
-        // --- DOWNLOAD LOGIC ---
+        // ==========================================
+        // 3. DOWNLOAD LOGIC
+        // ==========================================
         function downloadBracketImage() {
             const element = document.getElementById("bracket-capture-area");
             const btn = document.querySelector(".download-btn");
@@ -87,10 +161,9 @@
             btn.innerText = "Generating...";
             btn.style.opacity = "0.7";
 
+            // Snapshot state
             const prevTransform = element.style.transform;
-            const prevWidth = element.style.width;
-            element.style.transform = "scale(1)";
-            element.style.width = "auto";
+            element.style.transform = "scale(1)"; // Reset for clean shot
 
             html2canvas(element, {
                 backgroundColor: "#050505",
@@ -107,20 +180,20 @@
                 link.click();
                 
                 element.style.transform = prevTransform;
-                element.style.width = prevWidth;
                 btn.innerText = originalText;
                 btn.style.opacity = "1";
             }).catch(err => {
                 console.error(err);
                 alert("Image generation failed.");
                 element.style.transform = prevTransform;
-                element.style.width = prevWidth;
                 btn.innerText = originalText;
                 btn.style.opacity = "1";
             });
         }
 
-        // --- EXISTING LOGIC ---
+        // ==========================================
+        // 4. DATA LOADING
+        // ==========================================
         const tournamentId = getTournamentIdFromUrl();
         
         if (isLoggedIn()) {
@@ -136,6 +209,7 @@
             })
             .then(data => {
                 document.getElementById('tournament-title').innerText = data.name;
+                
                 adjustBracketScale(data.rounds.length);
 
                 if (data.status === 'active') {
@@ -152,6 +226,12 @@
                 }
 
                 renderTreeBracket(data);
+                
+                // Initial Scroll Center
+                setTimeout(() => {
+                   const scrollX = (slider.scrollWidth - slider.clientWidth) / 2;
+                   slider.scrollLeft = scrollX;
+                }, 100);
             })
             .catch(err => {
                 document.getElementById('error-msg').innerText = err.message;
@@ -159,16 +239,18 @@
 
         function adjustBracketScale(totalRounds) {
             const root = document.documentElement;
+            const isMobile = window.innerWidth < 768;
+
             if (totalRounds <= 3) {
-                root.style.setProperty('--column-width', '280px');
+                root.style.setProperty('--column-width', isMobile ? '200px' : '280px');
                 root.style.setProperty('--match-gap', '40px');
             } 
             else if (totalRounds <= 5) {
-                root.style.setProperty('--column-width', '260px');
+                root.style.setProperty('--column-width', isMobile ? '180px' : '260px');
                 root.style.setProperty('--match-gap', '30px');
             } 
             else {
-                root.style.setProperty('--column-width', '240px');
+                root.style.setProperty('--column-width', isMobile ? '160px' : '240px');
                 root.style.setProperty('--match-gap', '20px');
             }
         }
@@ -236,7 +318,7 @@
                 const bye = document.createElement('div');
                 bye.className = 'bracket-team lost';
                 bye.style.justifyContent = 'center';
-                bye.innerHTML = '<span style="font-size:0.8em; color:#555;">LUCKY SONG!</span>';
+                bye.innerHTML = '<span style="font-size:0.8em; color:#555;">(BYE)</span>';
                 node.appendChild(bye);
             }
             return node;

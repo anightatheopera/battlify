@@ -56,89 +56,76 @@ h1, h2, h3 { font-family: 'Cinzel', serif; color: var(--accent-color); }
     padding: 20px; 
 }
 
-/* NEW: The Window handles SCROLLING and BACKGROUND */
+/* WINDOW: Handles Scrolling & Dragging */
 .bracket-window {
     width: 100%;
     min-height: 80vh; 
-    overflow: auto; /* Scrollbars appear here */
+    overflow: auto; /* Scrollbars active */
     background: #050505;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     position: relative;
     display: flex;
-    justify-content: center;
+    /* FIX: Remove 'center' to prevent cropping on left/right edges */
+    /* justify-content: center;  <-- REMOVED */
     align-items: flex-start;
     padding: 40px;
+    box-sizing: border-box;
+    
+    /* CURSOR: Indicates panning is possible */
+    cursor: grab;
+    touch-action: none; /* Prevents default browser swipe-nav on some devices */
 }
 
-/* Wrapper handles LAYOUT and SCALING */
+.bracket-window:active {
+    cursor: grabbing;
+}
+
+/* WRAPPER: Handles Zoom & Layout */
 .bracket-wrapper {
     display: flex;
     justify-content: center;
     align-items: stretch; 
-    transform-origin: top center; 
-    transition: transform 0.2s ease-out;
+    
+    /* FIX: Centers content if small, allows scrolling if large */
+    margin: auto; 
+    
+    /* FIX: Zoom from top-left so coordinates match scrollbars */
+    transform-origin: top left; 
+    transition: transform 0.1s ease-out; /* Faster transition for responsive feel */
 }
 
 /* ========================================= */
-/* 4. UI COMPONENTS (RESTORED)               */
+/* 4. UI COMPONENTS                          */
 /* ========================================= */
 
-/* --- TABS (Restored Old Style) --- */
 .tabs {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #333;
-    padding-bottom: 10px;
+    display: flex; justify-content: center; gap: 20px;
+    margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;
 }
-
 .tab-btn {
-    background: transparent;
-    color: #888;
-    border: none;
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 10px 20px;
-    transition: all 0.2s;
-    font-family: 'Cinzel', serif;
-    border-bottom: 2px solid transparent;
+    background: transparent; color: #888; border: none; font-size: 1.2rem;
+    cursor: pointer; padding: 10px 20px; transition: all 0.2s;
+    font-family: 'Cinzel', serif; border-bottom: 2px solid transparent;
 }
-
 .tab-btn:hover { color: var(--text-color); }
+.tab-btn.active { color: var(--accent-color); border-bottom: 2px solid var(--accent-color); }
 
-.tab-btn.active {
-    color: var(--accent-color);
-    border-bottom: 2px solid var(--accent-color);
-}
-
-/* --- BUTTONS (Restored Old Style) --- */
 button {
-    background-color: var(--accent-color);
-    color: #000;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 5px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background 0.2s;
-    font-family: 'Cinzel', serif;
+    background-color: var(--accent-color); color: #000; padding: 12px 24px;
+    border: none; border-radius: 5px; font-weight: bold; cursor: pointer;
+    transition: background 0.2s; font-family: 'Cinzel', serif;
 }
 button:hover { background-color: var(--accent-hover); }
 
-/* --- SPECIFIC OVERRIDES FOR NEW BUTTONS --- */
-
-/* Download Button (Ghost Style) */
+/* Download Button (Ghost) */
 .download-btn {
-    background: transparent;
-    color: var(--accent-color);
-    border: 1px solid var(--accent-color);
-    padding: 8px 16px;
+    background: transparent; color: var(--accent-color);
+    border: 1px solid var(--accent-color); padding: 8px 16px;
 }
 .download-btn:hover { background: var(--accent-color); color: #000; }
 
-/* Zoom Buttons (Icon Style) */
+/* Zoom Controls */
 .zoom-controls {
     position: fixed; bottom: 30px; right: 30px; 
     display: flex; gap: 8px; 
@@ -155,7 +142,7 @@ button:hover { background-color: var(--accent-hover); }
     background: var(--accent-color); color: #000; border-color: var(--accent-color);
 }
 
-/* Forms & Lists */
+/* Utils */
 .form-group { margin-bottom: 15px; text-align: left; }
 label { display: block; margin-bottom: 5px; font-weight: bold; }
 input, textarea {
@@ -163,14 +150,12 @@ input, textarea {
     border: 1px solid var(--border-color); color: var(--text-color); 
     border-radius: 5px; box-sizing: border-box; font-family: 'Lato', sans-serif;
 }
-
 .tournament-list { list-style: none; padding: 0; max-width: 600px; margin: 0 auto; }
 .tournament-list li {
     background: var(--card-bg); margin-bottom: 10px; padding: 15px; 
     border-radius: 5px; border-left: 3px solid var(--accent-color); text-align: left;
 }
 .tournament-list a { font-size: 1.2em; display: block;}
-
 .round-info {
     background: var(--card-bg); padding: 15px; border-radius: 10px; 
     margin-bottom: 30px; border: 1px solid var(--accent-color);
@@ -288,4 +273,40 @@ input, textarea {
 .bracket-final .bracket-match::after {
     content: ''; position: absolute; right: -40px; top: 50%; 
     width: 40px; height: var(--line-width); background: var(--line-color); z-index: -1;
+}
+
+/* ========================================= */
+/* 7. MOBILE RESPONSIVENESS                  */
+/* ========================================= */
+
+.controls-header {
+    display: flex; justify-content: space-between; align-items: center; 
+    margin-bottom: 20px; padding: 0 40px;
+}
+.controls-actions { display: flex; gap: 15px; }
+
+@media screen and (max-width: 768px) {
+    .header { justify-content: center; padding: 10px; height: auto; }
+    .container { padding: 10px; }
+    .controls-header { flex-direction: column; gap: 15px; padding: 0; text-align: center; }
+    .controls-actions { width: 100%; justify-content: center; }
+    #tournament-title { font-size: 1.5rem; }
+
+    .zoom-controls {
+        bottom: 20px; right: 50%; transform: translateX(50%);
+        width: max-content; background: rgba(17, 17, 17, 0.95);
+    }
+    .zoom-btn { width: 44px; height: 44px; font-size: 1.5rem; }
+
+    /* Mobile: Allow native scrolling feel but we rely on the JS drag for full control */
+    .bracket-window {
+        padding: 20px;
+        height: 65vh; 
+        /* touch-action: none; is already set globally for the window to enable drag script */
+    }
+
+    :root { --gap-width: 20px; --line-reach: 10px; }
+    .round-column { padding: 0 10px; }
+    .team-name { font-size: 0.75em; }
+    .team-art { width: 24px; height: 24px; }
 }
