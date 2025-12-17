@@ -2,29 +2,34 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.routes import admin, voting
+from pathlib import Path
 
 app = FastAPI()
 
-# Mount Frontend Static Assets
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
+# This finds the root folder based on where main.py is located
+BASE_DIR = Path(__file__).resolve().parent.parent 
+FRONTEND_DIR = BASE_DIR / "frontend"
+
+# Mount Frontend Static Assets using the absolute path
+app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 # Include API Routes
 app.include_router(admin.router, prefix="/api/admin")
 app.include_router(voting.router, prefix="/api/vote")
 
-# Frontend Routes
+# Frontend Routes (Updated to use absolute paths)
 @app.get("/")
 async def read_index():
-    return FileResponse('frontend/index.html')
+    return FileResponse(FRONTEND_DIR / 'index.html')
 
 @app.get("/create")
 async def create_page():
-    return FileResponse('frontend/create.html')
+    return FileResponse(FRONTEND_DIR / 'create.html')
 
 @app.get("/manage/{tournament_id}")
 async def manage_page(tournament_id: str):
-    return FileResponse('frontend/manage.html')
+    return FileResponse(FRONTEND_DIR / 'manage.html')
 
 @app.get("/bracket/{tournament_id}")
 async def bracket_page(tournament_id: str):
-    return FileResponse('frontend/vote.html')
+    return FileResponse(FRONTEND_DIR / 'vote.html')
