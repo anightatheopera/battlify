@@ -1,4 +1,4 @@
-# 🏆 Music Tournament Bracket App
+# 🏆 Battlify
 
 A full-stack web application for creating, managing, and voting on music tournaments. Users can generate brackets from Spotify playlists, vote on matchups in real-time, and view dynamic "tree-style" visualizations of the results.
 
