@@ -2,12 +2,12 @@ from datetime import datetime, timedelta, timezone
 from app.models import Round, Match, Contestant
 from app.database import get_database
 from bson.objectid import ObjectId
+import random
+
 
 db = get_database()
 
 def create_initial_round(contestants: list[Contestant], duration_minutes: int) -> list[Round]:
-    # ... (Shuffling and pairing logic remains the same) ...
-    import random
     random.shuffle(contestants)
     matches = []
     match_id_counter = 1
@@ -23,7 +23,6 @@ def create_initial_round(contestants: list[Contestant], duration_minutes: int) -
         ))
         match_id_counter += 1
 
-    # FIX: Use timezone.utc explicitly
     first_round = Round(
         round_index=0,
         round_name="Round 1",
@@ -43,7 +42,6 @@ def process_round_progression(tournament_id: str):
     current_idx = t["current_round_index"]
     current_round = t["rounds"][current_idx]
     
-    # FIX: Ensure 'now' is UTC
     now = datetime.now(timezone.utc)
     
     # Handle end_time parsing (Mongo sometimes returns str, sometimes datetime)

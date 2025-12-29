@@ -7,7 +7,7 @@ class Contestant(BaseModel):
     title: str
     artist: str
     image_url: Optional[str] = None
-    embed_html: str
+    embed_html: Optional[str] = None
     original_url: str
     preview_url: Optional[str] = None
 

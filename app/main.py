@@ -6,14 +6,18 @@ from pathlib import Path
 
 app = FastAPI()
 
+# Path Configuration
 BASE_DIR = Path(__file__).resolve().parent.parent 
 FRONTEND_DIR = BASE_DIR / "frontend"
 
+# Mount Frontend Static Assets
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
+# Include API Routes
 app.include_router(admin.router, prefix="/api/admin")
 app.include_router(voting.router, prefix="/api/vote")
 
+# Handle Favicon
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return FileResponse(FRONTEND_DIR / "logo.png")
