@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vote - Lorian Awards</title>
-    <link rel="stylesheet" href="/static/styles.css?v=21">
+    <link rel="stylesheet" href="/static/styles.css?v=28">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
@@ -21,9 +21,7 @@
         <div class="controls-header">
             <h1 id="tournament-title" style="margin:0;">Loading...</h1>
             <div class="controls-actions">
-                <button onclick="downloadBracketImage()" class="download-btn">
-                    📸 Save
-                </button>
+                <button onclick="downloadBracketImage()" class="download-btn">📸 Save</button>
                 <a id="manage-link" href="#" style="font-size:0.9em; color: #888; display: none;">[Manage]</a>
             </div>
         </div>
@@ -46,170 +44,132 @@
                 <div id="bracket-right" class="bracket-half right"></div>
             </div>
         </div>
-
         <div id="error-msg" style="color: red; text-align:center; margin-top:20px;"></div>
+    </div>
+
+    <div id="music-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close-btn" onclick="closeModal()">×</button>
+            <div id="embed-container"></div>
+        </div>
     </div>
 
     <script src="/static/script.js"></script>
     <script>
         // ==========================================
-        // 1. DRAG TO SCROLL LOGIC (Touch & Mouse)
+        // 1. TOUCH & MOUSE DRAG LOGIC
         // ==========================================
         const slider = document.getElementById('bracket-window');
-        let isDown = false;
-        let startX, startY;
-        let scrollLeft, scrollTop;
+        let isDown = false, startX, startY, scrollLeft, scrollTop;
 
-        // --- MOUSE EVENTS ---
-        slider.addEventListener('mousedown', (e) => {
-            isDown = true;
-            slider.style.cursor = 'grabbing';
-            startX = e.pageX - slider.offsetLeft;
-            startY = e.pageY - slider.offsetTop;
-            scrollLeft = slider.scrollLeft;
-            scrollTop = slider.scrollTop;
-        });
+        const startDrag = (e) => {
+            // Prevent dragging if clicking a button
+            if (e.target.closest('button') || e.target.closest('.play-btn') || e.target.closest('.bracket-team')) return;
 
-        slider.addEventListener('mouseleave', () => {
-            isDown = false;
-            slider.style.cursor = 'grab';
-        });
-
-        slider.addEventListener('mouseup', () => {
-            isDown = false;
-            slider.style.cursor = 'grab';
-        });
-
-        slider.addEventListener('mousemove', (e) => {
+            isDown = true; slider.style.cursor = 'grabbing';
+            const pageX = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+            const pageY = e.type.includes('mouse') ? e.pageY : e.touches[0].pageY;
+            startX = pageX - slider.offsetLeft; startY = pageY - slider.offsetTop;
+            scrollLeft = slider.scrollLeft; scrollTop = slider.scrollTop;
+        };
+        const stopDrag = () => { isDown = false; slider.style.cursor = 'grab'; };
+        const doDrag = (e) => {
             if (!isDown) return;
-            e.preventDefault();
-            const x = e.pageX - slider.offsetLeft;
-            const y = e.pageY - slider.offsetTop;
-            const walkX = (x - startX); 
-            const walkY = (y - startY);
-            slider.scrollLeft = scrollLeft - walkX;
-            slider.scrollTop = scrollTop - walkY;
-        });
+            if(e.cancelable && e.type === 'touchmove') e.preventDefault(); 
+            
+            const pageX = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+            const pageY = e.type.includes('mouse') ? e.pageY : e.touches[0].pageY;
+            const x = pageX - slider.offsetLeft; const y = pageY - slider.offsetTop;
+            const walkX = (x - startX); const walkY = (y - startY);
+            slider.scrollLeft = scrollLeft - walkX; slider.scrollTop = scrollTop - walkY;
+        };
 
-        // --- TOUCH EVENTS (For Mobile Fingers) ---
-        slider.addEventListener('touchstart', (e) => {
-            isDown = true;
-            startX = e.touches[0].pageX - slider.offsetLeft;
-            startY = e.touches[0].pageY - slider.offsetTop;
-            scrollLeft = slider.scrollLeft;
-            scrollTop = slider.scrollTop;
-        });
-
-        slider.addEventListener('touchend', () => {
-            isDown = false;
-        });
-
-        slider.addEventListener('touchmove', (e) => {
-            if (!isDown) return;
-            // Don't prevent default if we are mostly scrolling vertically on mobile body
-            // e.preventDefault(); 
-            const x = e.touches[0].pageX - slider.offsetLeft;
-            const y = e.touches[0].pageY - slider.offsetTop;
-            const walkX = (x - startX); 
-            const walkY = (y - startY);
-            slider.scrollLeft = scrollLeft - walkX;
-            slider.scrollTop = scrollTop - walkY;
-        });
+        slider.addEventListener('mousedown', startDrag);
+        slider.addEventListener('mouseleave', stopDrag);
+        slider.addEventListener('mouseup', stopDrag);
+        slider.addEventListener('mousemove', doDrag);
+        
+        slider.addEventListener('touchstart', startDrag);
+        slider.addEventListener('touchend', stopDrag);
+        slider.addEventListener('touchmove', doDrag);
 
         // ==========================================
-        // 2. ZOOM LOGIC
+        // 2. MODAL LOGIC
+        // ==========================================
+        const modal = document.getElementById('music-modal');
+        const embedContainer = document.getElementById('embed-container');
+
+        function openModal(embedHtml) {
+            embedContainer.innerHTML = embedHtml;
+            modal.classList.add('active');
+        }
+        function closeModal() {
+            modal.classList.remove('active');
+            setTimeout(() => { embedContainer.innerHTML = ''; }, 300);
+        }
+
+        // ==========================================
+        // 3. ZOOM LOGIC
         // ==========================================
         let currentZoom = 1.0;
-
         function adjustZoom(delta) {
-            currentZoom += delta;
-            if (currentZoom < 0.2) currentZoom = 0.2;
-            if (currentZoom > 3.0) currentZoom = 3.0; // Allow deeper zoom
+            currentZoom = Math.min(Math.max(currentZoom + delta, 0.3), 3.0);
             applyZoom();
         }
-
         function resetZoom() {
-            currentZoom = 1.0;
-            applyZoom();
-            // Reset scroll to center-ish
-            slider.scrollLeft = (slider.scrollWidth - slider.clientWidth) / 2;
+            currentZoom = 1.0; applyZoom();
+            const wrapper = document.getElementById('bracket-capture-area');
+            const centerOffset = (wrapper.offsetWidth - slider.clientWidth) / 2;
+            slider.scrollLeft = Math.max(0, centerOffset);
         }
-
         function applyZoom() {
             const wrapper = document.getElementById('bracket-capture-area');
             wrapper.style.transform = `scale(${currentZoom})`;
-            
-            // IMPORTANT: Update width/height to force scrollbars to appear
-            // This is what allows you to scroll to the edges when zoomed in
-            if(currentZoom > 1) {
-                // wrapper.style.width = `${currentZoom * 100}%`; 
-                // We rely on the native scale size pushing the margins
-            } else {
-                // If zoomed out, ensure it doesn't align weirdly
-                // wrapper.style.width = 'auto';
-            }
         }
 
         // ==========================================
-        // 3. DOWNLOAD LOGIC
+        // 4. DOWNLOAD LOGIC
         // ==========================================
         function downloadBracketImage() {
             const element = document.getElementById("bracket-capture-area");
             const btn = document.querySelector(".download-btn");
             const originalText = btn.innerText;
+            btn.innerText = "Generating..."; btn.style.opacity = "0.7";
 
-            btn.innerText = "Generating...";
-            btn.style.opacity = "0.7";
-
-            // Snapshot state
             const prevTransform = element.style.transform;
-            element.style.transform = "scale(1)"; // Reset for clean shot
+            element.style.transform = "scale(1)"; 
 
             html2canvas(element, {
-                backgroundColor: "#050505",
-                useCORS: true,
-                scale: 2,
-                scrollX: 0,
-                scrollY: 0,
-                windowWidth: element.scrollWidth,
-                windowHeight: element.scrollHeight
+                backgroundColor: "#050505", useCORS: true, scale: 2,
+                scrollX: 0, scrollY: 0,
+                windowWidth: element.scrollWidth, windowHeight: element.scrollHeight
             }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = `bracket_${Date.now()}.png`;
                 link.href = canvas.toDataURL("image/png");
                 link.click();
-                
                 element.style.transform = prevTransform;
-                btn.innerText = originalText;
-                btn.style.opacity = "1";
+                btn.innerText = originalText; btn.style.opacity = "1";
             }).catch(err => {
-                console.error(err);
-                alert("Image generation failed.");
+                console.error(err); alert("Failed.");
                 element.style.transform = prevTransform;
-                btn.innerText = originalText;
-                btn.style.opacity = "1";
+                btn.innerText = originalText; btn.style.opacity = "1";
             });
         }
 
         // ==========================================
-        // 4. DATA LOADING
+        // 5. MAIN LOGIC & RENDERING
         // ==========================================
         const tournamentId = getTournamentIdFromUrl();
-        
         if (isLoggedIn()) {
-            const manageLink = document.getElementById('manage-link');
-            manageLink.href = `/manage/${tournamentId}`;
-            manageLink.style.display = 'inline';
+            document.getElementById('manage-link').href = `/manage/${tournamentId}`;
+            document.getElementById('manage-link').style.display = 'inline';
         }
 
         fetch(`/api/vote/tournament/${tournamentId}`)
-            .then(res => {
-                if (!res.ok) throw new Error("Tournament not found.");
-                return res.json();
-            })
+            .then(res => res.json())
             .then(data => {
                 document.getElementById('tournament-title').innerText = data.name;
-                
                 adjustBracketScale(data.rounds.length);
 
                 if (data.status === 'active') {
@@ -226,32 +186,19 @@
                 }
 
                 renderTreeBracket(data);
-                
-                // Initial Scroll Center
-                setTimeout(() => {
-                   const scrollX = (slider.scrollWidth - slider.clientWidth) / 2;
-                   slider.scrollLeft = scrollX;
-                }, 100);
+                setTimeout(() => resetZoom(), 200);
             })
-            .catch(err => {
-                document.getElementById('error-msg').innerText = err.message;
-            });
+            .catch(err => document.getElementById('error-msg').innerText = err.message);
 
         function adjustBracketScale(totalRounds) {
             const root = document.documentElement;
             const isMobile = window.innerWidth < 768;
-
             if (totalRounds <= 3) {
                 root.style.setProperty('--column-width', isMobile ? '200px' : '280px');
-                root.style.setProperty('--match-gap', '40px');
-            } 
-            else if (totalRounds <= 5) {
+            } else if (totalRounds <= 5) {
                 root.style.setProperty('--column-width', isMobile ? '180px' : '260px');
-                root.style.setProperty('--match-gap', '30px');
-            } 
-            else {
+            } else {
                 root.style.setProperty('--column-width', isMobile ? '160px' : '240px');
-                root.style.setProperty('--match-gap', '20px');
             }
         }
 
@@ -259,7 +206,6 @@
             const leftRoot = document.getElementById('bracket-left');
             const rightRoot = document.getElementById('bracket-right');
             const finalRoot = document.getElementById('bracket-final');
-
             leftRoot.innerHTML = ''; rightRoot.innerHTML = ''; finalRoot.innerHTML = '';
 
             data.rounds.forEach((round, index) => {
@@ -271,17 +217,13 @@
                     finalRoot.appendChild(col);
                     return;
                 } 
-
                 const leftCol = createColumn();
                 const rightCol = createColumn();
-                
                 const matches = round.matches;
                 const midPoint = Math.ceil(matches.length / 2);
-                const leftMatches = matches.slice(0, midPoint);
-                const rightMatches = matches.slice(midPoint);
-
-                appendMatchesAsPairs(leftCol, leftMatches, isVotingRound, index, 'left');
-                appendMatchesAsPairs(rightCol, rightMatches, isVotingRound, index, 'right');
+                
+                appendMatchesAsPairs(leftCol, matches.slice(0, midPoint), isVotingRound, index, 'left');
+                appendMatchesAsPairs(rightCol, matches.slice(midPoint), isVotingRound, index, 'right');
 
                 leftRoot.appendChild(leftCol);
                 rightRoot.appendChild(rightCol);
@@ -318,7 +260,7 @@
                 const bye = document.createElement('div');
                 bye.className = 'bracket-team lost';
                 bye.style.justifyContent = 'center';
-                bye.innerHTML = '<span style="font-size:0.8em; color:#555;">lucky song! going to the next round with no competition ;)</span>';
+                bye.innerHTML = '<span style="font-size:0.8em; color:#555;">(BYE)</span>';
                 node.appendChild(bye);
             }
             return node;
@@ -331,6 +273,18 @@
             else if (match.winner_id && match.winner_id !== contestant.id) statusClass = 'lost';
             
             row.className = `bracket-team ${statusClass}`;
+
+            // --- PLAY BUTTON (Only if active round) ---
+            if (isVotingRound) {
+                const playBtn = document.createElement('div');
+                playBtn.className = 'play-btn';
+                playBtn.innerHTML = '▶';
+                playBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    openModal(contestant.embed_html);
+                };
+                row.appendChild(playBtn);
+            }
 
             const img = document.createElement('img');
             img.src = contestant.image_url || '/static/logo.png';
