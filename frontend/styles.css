@@ -29,6 +29,9 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     margin: 0; padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 a { color: var(--accent-color); text-decoration: none; }
@@ -39,6 +42,7 @@ h1, h2, h3 { font-family: 'Cinzel', serif; color: var(--accent-color); }
     background-color: var(--bg-color); border-bottom: 1px solid var(--border-color);
     height: 60px; box-sizing: border-box;
     position: sticky; top: 0; z-index: 1000;
+    width: 100%;
 }
 .site-logo { height: 30px; width: auto; }
 .site-title { font-family: 'Cinzel', serif; font-weight: 700; color: var(--accent-color); letter-spacing: 2px; }
@@ -50,6 +54,11 @@ h1, h2, h3 { font-family: 'Cinzel', serif; color: var(--accent-color); }
     max-width: 100%;
     margin: 0 auto; 
     padding: 20px; 
+    flex: 1; 
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* WINDOW */
@@ -110,7 +119,8 @@ button:hover { background-color: var(--accent-hover); }
 .download-btn:hover { background: var(--accent-color); color: #000; }
 
 .zoom-controls {
-    position: fixed; bottom: 30px; right: 30px; 
+    position: fixed; bottom: 80px; 
+    right: 30px; 
     display: flex; gap: 8px; 
     background: #111; padding: 8px; 
     border-radius: 8px; border: 1px solid #333;
@@ -250,14 +260,130 @@ input, textarea {
 }
 
 /* ========================================= */
-/* 7. MOBILE RESPONSIVENESS                  */
+/* 7. FOOTER                                 */
 /* ========================================= */
-.controls-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 0 40px; }
-.controls-actions { display: flex; gap: 15px; }
+.site-footer {
+    background-color: #080808;
+    border-top: 1px solid var(--border-color);
+    padding: 30px 40px;
+    width: 100%;
+    margin-top: auto; 
+    box-sizing: border-box;
+    z-index: 100;
+}
 
-@media screen and (max-width: 768px) {
-    .header { justify-content: center; padding: 10px; height: auto; }
-    .container { padding: 10px; }
+.footer-container {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    justify-content: center; /* Centers the Company Socials */
+    align-items: center;
+    position: relative;
+    flex-wrap: wrap;
+    min-height: 40px;
+}
+
+/* Main Socials (Centered) */
+.company-socials {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    justify-content: center;
+}
+
+.social-group-label {
+    color: var(--accent-color);
+    font-size: 0.9rem;
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    margin-right: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.social-divider {
+    width: 1px;
+    height: 24px;
+    background-color: #333;
+    margin: 0 10px;
+}
+
+.social-link {
+    color: var(--text-color);
+    font-size: 1.5rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.social-link:hover {
+    color: var(--accent-color);
+    transform: translateY(-3px);
+}
+
+/* --- THE MAGIC MASK for COLOR CHANGE --- */
+.lore-icon {
+    width: 32px;
+    height: 32px;
+    background-color: var(--text-color); /* Default White */
+    -webkit-mask: url('/static/lorelogo.png') no-repeat center / contain;
+    mask: url('/static/lorelogo.png') no-repeat center / contain;
+    transition: background-color 0.2s ease;
+    display: block;
+}
+
+.social-link:hover .lore-icon {
+    background-color: var(--accent-color); /* Becomes Gold on Hover */
+}
+
+/* Personal Socials (Absolute Right) */
+.personal-socials {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.personal-label {
+    color: #666;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Cinzel', serif;
+}
+
+.personal-link {
+    color: #888;
+    font-size: 1.1rem;
+    transition: color 0.2s;
+}
+
+.personal-link:hover {
+    color: var(--accent-color);
+}
+
+/* Mobile Footer */
+@media screen and (max-width: 850px) {
+    .footer-container {
+        flex-direction: column;
+        justify-content: center;
+        gap: 20px;
+    }
+    .personal-socials {
+        position: static;
+        transform: none;
+        justify-content: center;
+    }
+    .company-socials {
+        flex-wrap: wrap;
+        text-align: center;
+    }
+    .social-divider { display: none; }
+    
     .controls-header { flex-direction: column; gap: 15px; padding: 0; text-align: center; }
     .controls-actions { width: 100%; justify-content: center; }
     #tournament-title { font-size: 1.5rem; }

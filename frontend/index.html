@@ -1,122 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Lorian Awards - Home</title>
-    <link rel="stylesheet" href="/static/styles.css?v=10">
-</head>
-<body>
-    <header class="header">
-        <a href="/">
-            <img src="/static/logo.png" alt="Logo" class="site-logo">
+{% extends "base.html" %}
+
+{% block title %}Home - Lorian Awards{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div id="create-section" style="display:none; margin-bottom: 40px; text-align: center;">
+        <a href="/create" style="display:inline-block; background: var(--accent-color); color:black; padding: 15px 30px; border-radius: 5px; font-weight:bold; font-family:'Cinzel', serif;">
+            + Create New Bracket
         </a>
-        <a href="/" class="site-title">LORIAN AWARDS</a>
-        
-        <div style="margin-left: auto;">
-            <button id="login-btn" onclick="loginAdmin()">Admin Login</button>
-            <div id="admin-controls" style="display:none; gap: 10px;">
-                <span style="color: var(--accent-color); font-weight:bold; align-self:center;">ADMIN MODE</span>
-                <button onclick="logoutAdmin()" style="font-size: 0.8em; padding: 8px 16px;">Logout</button>
-            </div>
-        </div>
-    </header>
-
-    <div class="container">
-        <div id="create-section" style="display:none; margin-bottom: 40px; text-align: center;">
-            <a href="/create" style="display:inline-block; background: var(--accent-color); color:black; padding: 15px 30px; border-radius: 5px; font-weight:bold; font-family:'Cinzel', serif;">
-                + Create New Bracket
-            </a>
-        </div>
-
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('active')">Active Tournaments</button>
-            <button class="tab-btn" onclick="switchTab('past')">Past Tournaments</button>
-        </div>
-
-        <div id="loading">Loading tournaments...</div>
-
-        <div id="active-container">
-            <ul id="active-list" class="tournament-list"></ul>
-            <p id="no-active-msg" style="text-align:center; color:#666; display:none;">No active tournaments right now.</p>
-        </div>
-
-        <div id="past-container" class="hidden">
-            <ul id="past-list" class="tournament-list"></ul>
-            <p id="no-past-msg" style="text-align:center; color:#666; display:none;">No past tournaments found.</p>
-        </div>
     </div>
 
-    <script src="/static/script.js"></script>
-    <script>
-        // 1. Check Auth
-        if (isLoggedIn()) {
-            document.getElementById('login-btn').style.display = 'none';
-            document.getElementById('admin-controls').style.display = 'flex';
-            document.getElementById('create-section').style.display = 'block';
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('active')">Active Tournaments</button>
+        <button class="tab-btn" onclick="switchTab('past')">Past Tournaments</button>
+    </div>
+
+    <div id="loading">Loading tournaments...</div>
+
+    <div id="active-container">
+        <ul id="active-list" class="tournament-list"></ul>
+        <p id="no-active-msg" style="text-align:center; color:#666; display:none;">No active tournaments right now.</p>
+    </div>
+
+    <div id="past-container" class="hidden">
+        <ul id="past-list" class="tournament-list"></ul>
+        <p id="no-past-msg" style="text-align:center; color:#666; display:none;">No past tournaments found.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    if (isLoggedIn()) {
+        const createSec = document.getElementById('create-section');
+        if(createSec) createSec.style.display = 'block';
+    }
+
+    function switchTab(tabName) {
+        const activeBtn = document.querySelector("button[onclick=\"switchTab('active')\"]");
+        const pastBtn = document.querySelector("button[onclick=\"switchTab('past')\"]");
+        const activeContainer = document.getElementById('active-container');
+        const pastContainer = document.getElementById('past-container');
+
+        if (tabName === 'active') {
+            activeBtn.classList.add('active'); pastBtn.classList.remove('active');
+            activeContainer.classList.remove('hidden'); pastContainer.classList.add('hidden');
+        } else {
+            activeBtn.classList.remove('active'); pastBtn.classList.add('active');
+            activeContainer.classList.add('hidden'); pastContainer.classList.remove('hidden');
         }
+    }
 
-        // 2. Tab Logic
-        function switchTab(tabName) {
-            const activeBtn = document.querySelector("button[onclick=\"switchTab('active')\"]");
-            const pastBtn = document.querySelector("button[onclick=\"switchTab('past')\"]");
-            const activeContainer = document.getElementById('active-container');
-            const pastContainer = document.getElementById('past-container');
+    fetch('/api/vote/tournaments')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('loading').style.display = 'none';
+            const activeList = document.getElementById('active-list');
+            const pastList = document.getElementById('past-list');
+            let activeCount = 0; let pastCount = 0;
 
-            if (tabName === 'active') {
-                activeBtn.classList.add('active');
-                pastBtn.classList.remove('active');
-                activeContainer.classList.remove('hidden');
-                pastContainer.classList.add('hidden');
-            } else {
-                activeBtn.classList.remove('active');
-                pastBtn.classList.add('active');
-                activeContainer.classList.add('hidden');
-                pastContainer.classList.remove('hidden');
-            }
-        }
-
-        // 3. Fetch and Sort Data
-        fetch('/api/vote/tournaments')
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('loading').style.display = 'none';
-                
-                const activeList = document.getElementById('active-list');
-                const pastList = document.getElementById('past-list');
-                
-                let activeCount = 0;
-                let pastCount = 0;
-
-                data.forEach(t => {
-                    const li = document.createElement('li');
-                    
-                    // Admin Manage Link
-                    const manageLink = isLoggedIn() ? ` <a href="/manage/${t._id}" style="font-size:0.8em; float:right; color:#888;">[Manage]</a>` : '';
-                    
-                    // REMOVED: Status Badge logic
-
-                    li.innerHTML = `
-                        <a href="/bracket/${t._id}" style="display:inline;">${t.name}</a>
-                        ${manageLink}
-                    `;
-
-                    // Sort into lists
-                    if (t.status === 'active') {
-                        activeList.appendChild(li);
-                        activeCount++;
-                    } else if (t.status === 'completed') {
-                        pastList.appendChild(li);
-                        pastCount++;
-                    }
-                });
-
-                // Show "No items" messages if empty
-                if (activeCount === 0) document.getElementById('no-active-msg').style.display = 'block';
-                if (pastCount === 0) document.getElementById('no-past-msg').style.display = 'block';
-            })
-            .catch(err => {
-                document.getElementById('loading').innerText = "Error loading data.";
+            data.forEach(t => {
+                const li = document.createElement('li');
+                const manageLink = isLoggedIn() ? ` <a href="/manage/${t._id}" style="font-size:0.8em; float:right; color:#888;">[Manage]</a>` : '';
+                li.innerHTML = `<a href="/bracket/${t._id}" style="display:inline;">${t.name}</a>${manageLink}`;
+                if (t.status === 'active') { activeList.appendChild(li); activeCount++; } 
+                else if (t.status === 'completed') { pastList.appendChild(li); pastCount++; }
             });
-    </script>
-</body>
-</html>
+
+            if (activeCount === 0) document.getElementById('no-active-msg').style.display = 'block';
+            if (pastCount === 0) document.getElementById('no-past-msg').style.display = 'block';
+        })
+        .catch(err => { document.getElementById('loading').innerText = "Error loading data."; });
+</script>
+{% endblock %}

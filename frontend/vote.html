@@ -1,209 +1,202 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vote - Lorian Awards</title>
-    <link rel="stylesheet" href="/static/styles.css?v=33">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-</head>
-<body>
-    <header class="header">
-        <div style="display:flex; align-items:center; gap:10px;">
-            <a href="/">
-                <img src="/static/logo.png" alt="Logo" class="site-logo">
-            </a>
-            <a href="/" class="site-title">LORIAN AWARDS</a>
-        </div>
-    </header>
+{% extends "base.html" %}
 
-    <div class="container"> 
-        <div class="controls-header">
-            <h1 id="tournament-title" style="margin:0;">Loading...</h1>
-            <div class="controls-actions">
-                <button onclick="downloadBracketImage()" class="download-btn">📸 Save</button>
-                <a id="manage-link" href="#" style="font-size:0.9em; color: #888; display: none;">[Manage]</a>
-            </div>
-        </div>
+{% block title %}Vote - Lorian Awards{% endblock %}
 
-        <div id="round-info" class="round-info" style="display:none;">
-            <h2 id="current-round-name"></h2>
-            <div id="timer" class="timer"></div>
-        </div>
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+{% endblock %}
 
-        <div class="zoom-controls">
-            <button class="zoom-btn" onclick="adjustZoom(-0.1)">➖</button>
-            <button class="zoom-btn" onclick="resetZoom()">↺</button>
-            <button class="zoom-btn" onclick="adjustZoom(0.1)">➕</button>
+{% block content %}
+<div class="container"> 
+    <div class="controls-header">
+        <h1 id="tournament-title" style="margin:0;">Loading...</h1>
+        <div class="controls-actions">
+            <button onclick="downloadBracketImage()" class="download-btn">📸 Save</button>
+            <a id="manage-link" href="#" style="font-size:0.9em; color: #888; display: none;">[Manage]</a>
         </div>
-
-        <div class="bracket-window" id="bracket-window">
-            <div id="bracket-capture-area" class="bracket-wrapper">
-                <div id="bracket-left" class="bracket-half left"></div>
-                <div id="bracket-final" class="bracket-final"></div>
-                <div id="bracket-right" class="bracket-half right"></div>
-            </div>
-        </div>
-        <div id="error-msg" style="color: red; text-align:center; margin-top:20px;"></div>
     </div>
 
-    <script src="/static/script.js"></script>
-    <script>
-        // --- DRAG SCROLL ---
-        const slider = document.getElementById('bracket-window');
-        let isDown = false, startX, startY, scrollLeft, scrollTop;
+    <div id="round-info" class="round-info" style="display:none;">
+        <h2 id="current-round-name"></h2>
+        <div id="timer" class="timer"></div>
+    </div>
 
-        const startDrag = (e) => {
-            if (e.target.closest('button') || e.target.closest('.bracket-team')) return;
-            isDown = true; slider.style.cursor = 'grabbing';
-            const pageX = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
-            const pageY = e.type.includes('mouse') ? e.pageY : e.touches[0].pageY;
-            startX = pageX - slider.offsetLeft; startY = pageY - slider.offsetTop;
-            scrollLeft = slider.scrollLeft; scrollTop = slider.scrollTop;
-        };
-        const stopDrag = () => { isDown = false; slider.style.cursor = 'grab'; };
-        const doDrag = (e) => {
-            if (!isDown) return;
-            if(e.cancelable && e.type === 'touchmove') e.preventDefault(); 
-            const pageX = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
-            const pageY = e.type.includes('mouse') ? e.pageY : e.touches[0].pageY;
-            const x = pageX - slider.offsetLeft; const y = pageY - slider.offsetTop;
-            const walkX = (x - startX); const walkY = (y - startY);
-            slider.scrollLeft = scrollLeft - walkX; slider.scrollTop = scrollTop - walkY;
-        };
+    <div class="zoom-controls">
+        <button class="zoom-btn" onclick="adjustZoom(-0.1)">➖</button>
+        <button class="zoom-btn" onclick="resetZoom()">↺</button>
+        <button class="zoom-btn" onclick="adjustZoom(0.1)">➕</button>
+    </div>
 
-        slider.addEventListener('mousedown', startDrag); slider.addEventListener('mouseleave', stopDrag);
-        slider.addEventListener('mouseup', stopDrag); slider.addEventListener('mousemove', doDrag);
-        slider.addEventListener('touchstart', startDrag); slider.addEventListener('touchend', stopDrag);
-        slider.addEventListener('touchmove', doDrag);
+    <div class="bracket-window" id="bracket-window">
+        <div id="bracket-capture-area" class="bracket-wrapper">
+            <div id="bracket-left" class="bracket-half left"></div>
+            <div id="bracket-final" class="bracket-final"></div>
+            <div id="bracket-right" class="bracket-half right"></div>
+        </div>
+    </div>
+    <div id="error-msg" style="color: red; text-align:center; margin-top:20px;"></div>
+</div>
+{% endblock %}
 
-        // --- ZOOM LOGIC ---
-        let currentZoom = 1.0;
-        function adjustZoom(delta) { currentZoom = Math.min(Math.max(currentZoom + delta, 0.3), 3.0); applyZoom(); }
-        function resetZoom() { 
-            currentZoom = 1.0; applyZoom(); 
-            const wrapper = document.getElementById('bracket-capture-area');
-            slider.scrollLeft = Math.max(0, (wrapper.offsetWidth - slider.clientWidth) / 2);
-        }
-        function applyZoom() { document.getElementById('bracket-capture-area').style.transform = `scale(${currentZoom})`; }
+{% block scripts %}
+<script>
+    // --- DRAG SCROLL ---
+    const slider = document.getElementById('bracket-window');
+    let isDown = false, startX, startY, scrollLeft, scrollTop;
 
-        // --- DOWNLOAD ---
-        function downloadBracketImage() {
-            const el = document.getElementById("bracket-capture-area");
-            const btn = document.querySelector(".download-btn");
-            const originalText = btn.innerText; btn.innerText = "Generating..."; btn.style.opacity = "0.7";
-            const prevTransform = el.style.transform; el.style.transform = "scale(1)"; 
-            html2canvas(el, { backgroundColor: "#050505", useCORS: true, scale: 2 }).then(canvas => {
-                const link = document.createElement('a'); link.download = `bracket_${Date.now()}.png`;
-                link.href = canvas.toDataURL("image/png"); link.click();
-                el.style.transform = prevTransform; btn.innerText = originalText; btn.style.opacity = "1";
-            }).catch(err => { el.style.transform = prevTransform; btn.innerText = originalText; btn.style.opacity = "1"; });
-        }
+    const startDrag = (e) => {
+        if (e.target.closest('button') || e.target.closest('.bracket-team')) return;
+        isDown = true; slider.style.cursor = 'grabbing';
+        const pageX = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+        const pageY = e.type.includes('mouse') ? e.pageY : e.touches[0].pageY;
+        startX = pageX - slider.offsetLeft; startY = pageY - slider.offsetTop;
+        scrollLeft = slider.scrollLeft; scrollTop = slider.scrollTop;
+    };
+    const stopDrag = () => { isDown = false; slider.style.cursor = 'grab'; };
+    const doDrag = (e) => {
+        if (!isDown) return;
+        if(e.cancelable && e.type === 'touchmove') e.preventDefault(); 
+        const pageX = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+        const pageY = e.type.includes('mouse') ? e.pageY : e.touches[0].pageY;
+        const x = pageX - slider.offsetLeft; const y = pageY - slider.offsetTop;
+        const walkX = (x - startX); const walkY = (y - startY);
+        slider.scrollLeft = scrollLeft - walkX; slider.scrollTop = scrollTop - walkY;
+    };
 
-        // --- MAIN ---
-        const tournamentId = getTournamentIdFromUrl();
-        if (isLoggedIn()) { document.getElementById('manage-link').href = `/manage/${tournamentId}`; document.getElementById('manage-link').style.display = 'inline'; }
+    slider.addEventListener('mousedown', startDrag); slider.addEventListener('mouseleave', stopDrag);
+    slider.addEventListener('mouseup', stopDrag); slider.addEventListener('mousemove', doDrag);
+    slider.addEventListener('touchstart', startDrag); slider.addEventListener('touchend', stopDrag);
+    slider.addEventListener('touchmove', doDrag);
 
-        fetch(`/api/vote/tournament/${tournamentId}`)
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('tournament-title').innerText = data.name;
-                adjustBracketScale(data.rounds.length);
-                if (data.status === 'active') {
-                    document.getElementById('current-round-name').innerText = "VOTING ACTIVE: " + data.rounds[data.current_round_index].round_name;
-                    document.getElementById('round-info').style.display = 'block';
-                    startTimer(data.rounds[data.current_round_index].end_time);
-                } else if (data.status === 'completed') {
-                    document.getElementById('current-round-name').innerText = "TOURNAMENT COMPLETED";
-                    document.getElementById('round-info').style.display = 'block';
-                    document.getElementById('timer').innerText = "Winner!: Check the final bracket!";
-                }
-                renderTreeBracket(data);
-                setTimeout(() => resetZoom(), 200);
-            }).catch(err => document.getElementById('error-msg').innerText = err.message);
+    // --- ZOOM LOGIC ---
+    let currentZoom = 1.0;
+    function adjustZoom(delta) { currentZoom = Math.min(Math.max(currentZoom + delta, 0.3), 3.0); applyZoom(); }
+    function resetZoom() { 
+        currentZoom = 1.0; applyZoom(); 
+        const wrapper = document.getElementById('bracket-capture-area');
+        slider.scrollLeft = Math.max(0, (wrapper.offsetWidth - slider.clientWidth) / 2);
+    }
+    function applyZoom() { document.getElementById('bracket-capture-area').style.transform = `scale(${currentZoom})`; }
 
-        function adjustBracketScale(totalRounds) {
-            const root = document.documentElement; const isMobile = window.innerWidth < 768;
-            if (totalRounds <= 3) root.style.setProperty('--column-width', isMobile ? '200px' : '280px');
-            else if (totalRounds <= 5) root.style.setProperty('--column-width', isMobile ? '180px' : '260px');
-            else root.style.setProperty('--column-width', isMobile ? '160px' : '240px');
-        }
+    // --- DOWNLOAD ---
+    function downloadBracketImage() {
+        const el = document.getElementById("bracket-capture-area");
+        const btn = document.querySelector(".download-btn");
+        const originalText = btn.innerText; btn.innerText = "Generating..."; btn.style.opacity = "0.7";
+        const prevTransform = el.style.transform; el.style.transform = "scale(1)"; 
+        html2canvas(el, { backgroundColor: "#050505", useCORS: true, scale: 2 }).then(canvas => {
+            const link = document.createElement('a'); link.download = `bracket_${Date.now()}.png`;
+            link.href = canvas.toDataURL("image/png"); link.click();
+            el.style.transform = prevTransform; btn.innerText = originalText; btn.style.opacity = "1";
+        }).catch(err => { el.style.transform = prevTransform; btn.innerText = originalText; btn.style.opacity = "1"; });
+    }
 
-        function renderTreeBracket(data) {
-            const leftRoot = document.getElementById('bracket-left');
-            const rightRoot = document.getElementById('bracket-right');
-            const finalRoot = document.getElementById('bracket-final');
-            leftRoot.innerHTML = ''; rightRoot.innerHTML = ''; finalRoot.innerHTML = '';
+    // --- MAIN ---
+    // Use Jinja variable if available, otherwise fallback to URL parsing
+    const tournamentId = "{{ tournament_id }}" || window.location.pathname.split('/').pop();
 
-            data.rounds.forEach((round, index) => {
-                const isVotingRound = (index === data.current_round_index && data.status === 'active');
-                if (round.matches.length === 1) {
-                    const col = createColumn();
-                    col.appendChild(createMatchNode(round.matches[0], isVotingRound, index));
-                    finalRoot.appendChild(col);
-                    return;
-                }
-                const leftCol = createColumn(); const rightCol = createColumn();
-                const matches = round.matches; const mid = Math.ceil(matches.length / 2);
-                appendMatchesAsPairs(leftCol, matches.slice(0, mid), isVotingRound, index, 'left');
-                appendMatchesAsPairs(rightCol, matches.slice(mid), isVotingRound, index, 'right');
-                leftRoot.appendChild(leftCol); rightRoot.appendChild(rightCol);
-            });
-        }
+    if (isLoggedIn()) { 
+        document.getElementById('manage-link').href = `/manage/${tournamentId}`; 
+        document.getElementById('manage-link').style.display = 'inline'; 
+    }
 
-        function appendMatchesAsPairs(col, matches, isVotingRound, idx, side) {
-            for (let i = 0; i < matches.length; i += 2) {
-                if (i + 1 < matches.length) {
-                    const wrapper = document.createElement('div'); wrapper.className = `match-pair ${side}`;
-                    wrapper.appendChild(createMatchNode(matches[i], isVotingRound, idx));
-                    wrapper.appendChild(createMatchNode(matches[i+1], isVotingRound, idx));
-                    col.appendChild(wrapper);
-                } else col.appendChild(createMatchNode(matches[i], isVotingRound, idx));
+    fetch(`/api/vote/tournament/${tournamentId}`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('tournament-title').innerText = data.name;
+            adjustBracketScale(data.rounds.length);
+            if (data.status === 'active') {
+                document.getElementById('current-round-name').innerText = "VOTING ACTIVE: " + data.rounds[data.current_round_index].round_name;
+                document.getElementById('round-info').style.display = 'block';
+                startTimer(data.rounds[data.current_round_index].end_time);
+            } else if (data.status === 'completed') {
+                document.getElementById('current-round-name').innerText = "TOURNAMENT COMPLETED";
+                document.getElementById('round-info').style.display = 'block';
+                document.getElementById('timer').innerText = "Winner!: Check the final bracket!";
             }
+            renderTreeBracket(data);
+            setTimeout(() => resetZoom(), 200);
+        }).catch(err => document.getElementById('error-msg').innerText = err.message);
+
+    function adjustBracketScale(totalRounds) {
+        const root = document.documentElement; const isMobile = window.innerWidth < 768;
+        if (totalRounds <= 3) root.style.setProperty('--column-width', isMobile ? '200px' : '280px');
+        else if (totalRounds <= 5) root.style.setProperty('--column-width', isMobile ? '180px' : '260px');
+        else root.style.setProperty('--column-width', isMobile ? '160px' : '240px');
+    }
+
+    function renderTreeBracket(data) {
+        const leftRoot = document.getElementById('bracket-left');
+        const rightRoot = document.getElementById('bracket-right');
+        const finalRoot = document.getElementById('bracket-final');
+        leftRoot.innerHTML = ''; rightRoot.innerHTML = ''; finalRoot.innerHTML = '';
+
+        data.rounds.forEach((round, index) => {
+            const isVotingRound = (index === data.current_round_index && data.status === 'active');
+            if (round.matches.length === 1) {
+                const col = createColumn();
+                col.appendChild(createMatchNode(round.matches[0], isVotingRound, index));
+                finalRoot.appendChild(col);
+                return;
+            }
+            const leftCol = createColumn(); const rightCol = createColumn();
+            const matches = round.matches; const mid = Math.ceil(matches.length / 2);
+            appendMatchesAsPairs(leftCol, matches.slice(0, mid), isVotingRound, index, 'left');
+            appendMatchesAsPairs(rightCol, matches.slice(mid), isVotingRound, index, 'right');
+            leftRoot.appendChild(leftCol); rightRoot.appendChild(rightCol);
+        });
+    }
+
+    function appendMatchesAsPairs(col, matches, isVotingRound, idx, side) {
+        for (let i = 0; i < matches.length; i += 2) {
+            if (i + 1 < matches.length) {
+                const wrapper = document.createElement('div'); wrapper.className = `match-pair ${side}`;
+                wrapper.appendChild(createMatchNode(matches[i], isVotingRound, idx));
+                wrapper.appendChild(createMatchNode(matches[i+1], isVotingRound, idx));
+                col.appendChild(wrapper);
+            } else col.appendChild(createMatchNode(matches[i], isVotingRound, idx));
         }
+    }
 
-        function createColumn() { const col = document.createElement('div'); col.className = 'round-column'; return col; }
+    function createColumn() { const col = document.createElement('div'); col.className = 'round-column'; return col; }
 
-        function createMatchNode(match, isVotingRound, idx) {
-            const node = document.createElement('div'); node.className = 'bracket-match';
-            node.appendChild(createTeamRow(match.contestant_a, match.votes_a, match, 'a', isVotingRound, idx));
-            if (match.contestant_b) node.appendChild(createTeamRow(match.contestant_b, match.votes_b, match, 'b', isVotingRound, idx));
-            else node.innerHTML += '<div class="bracket-team lost" style="justify-content:center; color:#555;">(BYE)</div>';
-            return node;
-        }
+    function createMatchNode(match, isVotingRound, idx) {
+        const node = document.createElement('div'); node.className = 'bracket-match';
+        node.appendChild(createTeamRow(match.contestant_a, match.votes_a, match, 'a', isVotingRound, idx));
+        if (match.contestant_b) node.appendChild(createTeamRow(match.contestant_b, match.votes_b, match, 'b', isVotingRound, idx));
+        else node.innerHTML += '<div class="bracket-team lost" style="justify-content:center; color:#555;">(BYE)</div>';
+        return node;
+    }
 
-        function createTeamRow(contestant, votes, match, option, isVotingRound, idx) {
-            const row = document.createElement('div');
-            let status = '';
-            if (match.winner_id === contestant.id) status = 'winner';
-            else if (match.winner_id && match.winner_id !== contestant.id) status = 'lost';
-            row.className = `bracket-team ${status}`;
+    function createTeamRow(contestant, votes, match, option, isVotingRound, idx) {
+        const row = document.createElement('div');
+        let status = '';
+        if (match.winner_id === contestant.id) status = 'winner';
+        else if (match.winner_id && match.winner_id !== contestant.id) status = 'lost';
+        row.className = `bracket-team ${status}`;
 
-            // --- PLAY BUTTON REMOVED --- 
+        const img = document.createElement('img'); img.src = contestant.image_url || '/static/logo.png';
+        img.className = 'team-art'; img.crossOrigin = "anonymous";
+        const name = document.createElement('div'); name.className = 'team-name'; name.innerText = contestant.title;
+        const badge = document.createElement('div'); badge.className = 'vote-badge'; badge.innerText = votes;
 
-            const img = document.createElement('img'); img.src = contestant.image_url || '/static/logo.png';
-            img.className = 'team-art'; img.crossOrigin = "anonymous";
-            const name = document.createElement('div'); name.className = 'team-name'; name.innerText = contestant.title;
-            const badge = document.createElement('div'); badge.className = 'vote-badge'; badge.innerText = votes;
+        row.appendChild(img); row.appendChild(name); row.appendChild(badge);
 
-            row.appendChild(img); row.appendChild(name); row.appendChild(badge);
-
-            const votedKey = `voted_${tournamentId}_r${idx}_m${match.match_id}`;
-            if (isVotingRound && !match.winner_id) {
-                if (localStorage.getItem(votedKey)) {
-                    row.onclick = () => alert("⚠️ Already voted."); row.style.cursor = "not-allowed"; row.style.opacity = "0.7";
-                } else {
-                    row.onclick = () => {
-                        if(confirm(`Vote for ${contestant.title}?`)) {
-                            badge.innerText = parseInt(votes) + 1; badge.style.color = "var(--accent-color)";
-                            row.style.background = "#333"; vote(match.match_id, option, row);
-                            localStorage.setItem(votedKey, "true"); row.onclick = () => alert("⚠️ Already voted.");
-                        }
-                    };
-                }
-            } else row.style.cursor = "default";
-            return row;
-        }
-    </script>
-</body>
-</html>
+        const votedKey = `voted_${tournamentId}_r${idx}_m${match.match_id}`;
+        if (isVotingRound && !match.winner_id) {
+            if (localStorage.getItem(votedKey)) {
+                row.onclick = () => alert("⚠️ Already voted."); row.style.cursor = "not-allowed"; row.style.opacity = "0.7";
+            } else {
+                row.onclick = () => {
+                    if(confirm(`Vote for ${contestant.title}?`)) {
+                        badge.innerText = parseInt(votes) + 1; badge.style.color = "var(--accent-color)";
+                        row.style.background = "#333"; vote(match.match_id, option, row);
+                        localStorage.setItem(votedKey, "true"); row.onclick = () => alert("⚠️ Already voted.");
+                    }
+                };
+            }
+        } else row.style.cursor = "default";
+        return row;
+    }
+</script>
+{% endblock %}

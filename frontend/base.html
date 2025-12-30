@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}Lorian Awards{% endblock %}</title>
+    
+    <link rel="stylesheet" href="/static/styles.css?v=40">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    <header class="header">
+        <a href="/">
+            <img src="/static/logo.png" alt="Logo" class="site-logo">
+        </a>
+        <a href="/" class="site-title">LORIAN AWARDS</a>
+        
+        <div style="margin-left: auto;">
+            <button id="login-btn" onclick="loginAdmin()" style="display:none;">Admin Login</button>
+            <div id="admin-controls" style="display:none; gap: 10px;">
+                <span style="color: var(--accent-color); font-weight:bold; align-self:center;">ADMIN MODE</span>
+                <button onclick="logoutAdmin()" style="font-size: 0.8em; padding: 8px 16px;">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    {% block content %}
+    {% endblock %}
+
+    <footer class="site-footer">
+        <div class="footer-container">
+            <div class="company-socials">
+                <span class="social-group-label">Discover Lore</span>
+                <a href="https://www.loreobsessed.com/" target="_blank" class="social-link" title="Lore">
+                    <img src="https://www.google.com/s2/favicons?domain=www.loreobsessed.com&sz=128" alt="Lore Icon" class="lore-icon">
+                </a>
+            <div class="social-divider"></div>
+                <a href="https://discord.gg/jr8knWMMTb" target="_blank" class="social-link"><i class="fa-brands fa-discord"></i></a>
+                <a href="https://twitter.com/loreobsessed" target="_blank" class="social-link"><i class="fa-brands fa-x-twitter"></i></a>
+                <a href="https://tiktok.com/@lore" target="_blank" class="social-link"><i class="fa-brands fa-tiktok"></i></a>
+                <a href="https://instagram.com/loreobsessed" target="_blank" class="social-link"><i class="fa-brands fa-instagram"></i></a>
+            </div>
+            <div class="personal-socials">
+                <span class="personal-label">Created by:</span>
+                <a href="https://twitter.com/beyloriana" target="_blank" class="personal-link"><i class="fa-brands fa-x-twitter"></i></a>
+                <a href="https://tiktok.com/@beyloriana" target="_blank" class="personal-link"><i class="fa-brands fa-tiktok"></i></a>
+                <a href="https://github.com/anightatheopera target="_blank" class="personal-link"><i class="fa-brands fa-github"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/script.js"></script>
+    <script>
+        // Global Auth Check for Header Buttons
+        if (typeof isLoggedIn === 'function') {
+            if (isLoggedIn()) {
+                const loginBtn = document.getElementById('login-btn');
+                const adminControls = document.getElementById('admin-controls');
+                if(loginBtn) loginBtn.style.display = 'none';
+                if(adminControls) adminControls.style.display = 'flex';
+            } else {
+                const loginBtn = document.getElementById('login-btn');
+                // Only show login button on index/home page usually, or if desired
+                if(loginBtn && window.location.pathname === '/') loginBtn.style.display = 'block';
+            }
+        }
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
